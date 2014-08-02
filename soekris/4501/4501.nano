@@ -1,0 +1,162 @@
+NANO_NAME=soekris_4501
+NANO_KERNEL=SOEKRIS_4501
+NANO_ARCH=i386
+NANO_DRIVE=ada0
+NANO_PACKAGE_DIR=/root/soekris/4501.pkg/All
+NANO_PMAKE="make -j 2"
+
+CONF_INSTALL='
+WITHOUT_TOOLCHAIN=YES
+WITHOUT_CPP=YES
+WITHOUT_INSTALLLIB=YES
+'
+
+CONF_WORLD='
+WITHOUT_ACCT=YES
+WITHOUT_ACPI=YES
+WITHOUT_ASSERT_DEBUG=YES
+WITHOUT_AT=YES
+WITHOUT_ATF=YES
+WITHOUT_ATM=YES
+WITHOUT_BIND=YES
+WITHOUT_BLUETOOTH=YES
+WITHOUT_BSNMP=YES
+WITHOUT_CALENDAR=YES
+WITHOUT_CDDL=YES
+WITHOUT_CTM=YES
+WITHOUT_DICT=YES
+WITHOUT_EXAMPLES=YES
+WITHOUT_FLOPPY=YES
+WITHOUT_FREEBSD_UPDATE=YES
+WITHOUT_GAMES=YES
+WITHOUT_GROFF=YES
+WITHOUT_HTML=YES
+WITHOUT_INFO=YES
+WITHOUT_IPFW=YES
+WITHOUT_JAIL=YES
+WITHOUT_KLDLOAD=YES
+WITHOUT_LPR=YES
+WITHOUT_LOCALES=YES
+WITHOUT_FORTRAN=YES
+WITHOUT_MAIL=YES
+WITHOUT_MAN=YES
+WITHOUT_MISC=YES
+WITHOUT_MODULES=YES
+WITHOUT_NETGRAPH=YES
+WITHOUT_NIS=YES
+WITHOUT_PORTSNAP=YES
+WITHOUT_PPP=YES
+WITHOUT_PROFILE=YES
+WITHOUT_QUOTAS=YES
+WITHOUT_RCMDS=YES
+WITHOUT_RCS=YES
+WITHOUT_RESCUE=YES
+WITHOUT_SENDMAIL=YES
+WITHOUT_SHARE=YES
+WITHOUT_SHAREDOCS=YES
+WITHOUT_SVNLITE=YES
+WITHOUT_SYSCONS=YES
+WITHOUT_SYSINSTALL=YES
+WITHOUT_TEXTPROC=YES
+WITHOUT_USB=YES
+WITHOUT_WIRELESS=YES
+WITHOUT_ZFS=YES
+WITHOUT_ZONEINFO=YES
+'
+
+FlashDevice sandisk 2g
+
+cust_nobeastie() {
+  touch ${NANO_WORLDDIR}/boot/loader.conf
+  echo "beastie_disable=\"YES\"" >> ${NANO_WORLDDIR}/boot/loader.conf
+}
+
+nano_rm ( ) {
+	case $(uname -r) in
+	7*|8*|9*) rm $* ;;
+	*) rm -x $* ;;
+	esac
+}
+
+# run in the world chroot, errors fatal
+CR()
+{
+	chroot ${NANO_WORLDDIR} /bin/sh -exc "$*"
+}
+
+# run in the world chroot, errors not fatal
+CR0()
+{
+	chroot ${NANO_WORLDDIR} /bin/sh -c "$*" || true
+}
+
+cust_pkgng () (
+
+	# If the package directory doesn't exist, we're done.
+	if [ ! -d ${NANO_PACKAGE_DIR} ]; then
+		echo "DONE 0 packages"
+		return 0
+	fi
+
+	# Find a pkg-* package
+	for x in `find -s ${NANO_PACKAGE_DIR} -iname 'pkg-*'`; do
+		_NANO_PKG_PACKAGE=`basename "$x"`
+	done
+	if [ -z "${_NANO_PKG_PACKAGE}" -o ! -f "${NANO_PACKAGE_DIR}/${_NANO_PKG_PACKAGE}" ]; then
+		echo "FAILED: need a pkg/ package for bootstrapping"
+		exit 2
+	fi
+
+	# Copy packages into chroot
+	mkdir -p ${NANO_WORLDDIR}/Pkg
+	(
+		cd ${NANO_PACKAGE_DIR}
+		find ${NANO_PACKAGE_LIST} -print |
+		cpio -Ldumpv ${NANO_WORLDDIR}/Pkg
+	)
+
+	#Bootstrap pkg
+	CR env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /Pkg/${_NANO_PKG_PACKAGE}
+	CR pkg -N >/dev/null 2>&1
+	if [ "$?" -ne "0" ]; then
+		echo "FAILED: pkg bootstrapping faied"
+		exit 2
+	fi
+	nano_rm -f ${NANO_WORLDDIR}/Pkg/pkg-*
+
+	# Count & report how many we have to install
+	todo=`ls ${NANO_WORLDDIR}/Pkg | /usr/bin/wc -l`
+	todo=$(expr $todo + 1) # add one for pkg since it is installed already
+	echo "=== TODO: $todo"
+	ls ${NANO_WORLDDIR}/Pkg
+	echo "==="
+	while true
+	do
+		# Record how many we have now
+ 		have=$(CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l)
+
+		# Attempt to install more packages
+		CR0 'ls 'Pkg/*txz' | xargs env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add'
+
+		# See what that got us
+ 		now=$(CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l)
+		echo "=== NOW $now"
+		CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info
+		echo "==="
+		if [ $now -eq $todo ] ; then
+			echo "DONE $now packages"
+			break
+		elif [ $now -eq $have ] ; then
+			echo "FAILED: Nothing happened on this pass"
+			exit 2
+		fi
+	done
+	nano_rm -rf ${NANO_WORLDDIR}/Pkg
+)
+
+customize_cmd cust_comconsole
+customize_cmd cust_install_files
+customize_cmd cust_allow_ssh_root
+customize_cmd cust_nobeastie
+customize_cmd cust_pkgng
+
