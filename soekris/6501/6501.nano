@@ -1,8 +1,8 @@
-NANO_NAME=soekris_4501
-NANO_KERNEL=SOEKRIS_4501
-NANO_ARCH=i386
-NANO_DRIVE=ada0
-NANO_PACKAGE_DIR=/root/soekris/4501.pkg/All
+NANO_NAME=soekris_6501
+NANO_KERNEL=SOEKRIS_6501
+NANO_ARCH=amd64
+NANO_DRIVE=da0
+NANO_PACKAGE_DIR=/root/soekris/6501.pkg/All
 
 CONF_INSTALL='
 WITHOUT_INSTALLLIB=YES
@@ -85,7 +85,7 @@ WITHOUT_ZFS=YES
 WITHOUT_ZONEINFO=YES
 '
 
-FlashDevice sandisk 2g
+FlashDevice sandisk 4g
 
 cust_nobeastie() {
   touch ${NANO_WORLDDIR}/boot/loader.conf

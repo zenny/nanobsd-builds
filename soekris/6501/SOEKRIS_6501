@@ -1,0 +1,9 @@
+include         GENERIC
+ident           SOEKRIS_6501
+
+options         CAM_BOOT_DELAY=10000
+options         IPSEC
+options         IPSEC_NAT_T
+
+device          crypto
+device          mptable
