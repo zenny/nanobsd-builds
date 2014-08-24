@@ -2,8 +2,13 @@ NANO_NAME=soekris_6501
 NANO_KERNEL=SOEKRIS_6501
 NANO_ARCH=amd64
 NANO_DRIVE=ada0
+NANO_CONFSIZE=131072 # 64MiB
+NANO_RAM_ETCSIZE=131072 # 64MiB
+NANO_RAM_TMPVARSIZE=131072 # 64MiB
+NANO_CODESIZE=2097152 # 1GiB
+NANO_DATASIZE=-1
 NANO_PACKAGE_DIR=/root/soekris/6501.pkg/All
-NANO_RAM_TMPVARSIZE=32768
+NANO_PACKAGE_FETCH="ca_root_nss isc-dhcp42-server nss-pam-ldapd pkg tmux unbound"
 
 CONF_INSTALL='
 WITHOUT_INSTALLLIB=YES
@@ -86,7 +91,7 @@ WITHOUT_ZFS=YES
 WITHOUT_ZONEINFO=YES
 '
 
-FlashDevice sandisk 4g
+FlashDevice generic 30g
 
 cust_nobeastie() {
   touch ${NANO_WORLDDIR}/boot/loader.conf
@@ -114,7 +119,7 @@ CR0()
 
 cust_pkgng_fetch ()
 {
-	for PKG in ca_root_nss isc-dhcp42-server nss-pam-ldapd pkg tmux unbound; do
+	for PKG in ${NANO_PACKAGE_FETCH}; do
 		pkg fetch -dyo `dirname ${NANO_PACKAGE_DIR}` ${PKG}
 	done
 }
