@@ -93,7 +93,7 @@ FlashDevice generic 30g
 
 cust_data_mount() {
   mkdir -p ${NANO_WORLDDIR}/x1
-  echo "/dev/ada0s4 /x1 ufs rw,noatime 1 1" >> ${NANO_WORLDDIR}/etc/fstab
+  echo "/dev/${NANO_DRIVE}s4 /x1 ufs rw,noatime 1 1" >> ${NANO_WORLDDIR}/etc/fstab
 }
 
 cust_nobeastie() {
