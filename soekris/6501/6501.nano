@@ -15,6 +15,7 @@ NANO_PACKAGE_FETCH="
   nss-pam-ldapd
   pam_mkhomedir
   pkg
+  sudo
   tmux
   unbound
 "
