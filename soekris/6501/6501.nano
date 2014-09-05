@@ -105,6 +105,10 @@ cust_data_mount() {
   echo "/dev/${NANO_DRIVE}s4 /x1 ufs rw,noatime 1 1" >> ${NANO_WORLDDIR}/etc/fstab
 }
 
+cust_data_home() {
+  ln -s x1/home ${NANO_WORLDDIR}/home
+}
+
 cust_nobeastie() {
   touch ${NANO_WORLDDIR}/boot/loader.conf
   echo "beastie_disable=\"YES\"" >> ${NANO_WORLDDIR}/boot/loader.conf
@@ -203,6 +207,7 @@ cust_pkgng () (
 customize_cmd cust_nobeastie
 customize_cmd cust_comconsole
 customize_cmd cust_data_mount
+customize_cmd cust_data_home
 customize_cmd cust_allow_ssh_root
 customize_cmd cust_install_files
 customize_cmd cust_pkgng_fetch
