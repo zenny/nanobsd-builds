@@ -11,8 +11,9 @@ NANO_PACKAGE_DIR=/root/soekris/6501.pkg/All
 NANO_PACKAGE_FETCH="
   ca_root_nss
   isc-dhcp42-server
+  kstart
   krb5
-  nss-pam-ldapd
+  nss-pam-ldapd-sasl
   pam_mkhomedir
   pkg
   sudo
