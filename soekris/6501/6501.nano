@@ -10,6 +10,8 @@ NANO_DATASIZE=-1
 NANO_PACKAGE_DIR=/root/soekris/6501.pkg/All
 NANO_PACKAGE_FETCH="
   ca_root_nss
+  cyrus-sasl
+  cyrus-sasl-gssapi
   isc-dhcp42-server
   kstart
   krb5
