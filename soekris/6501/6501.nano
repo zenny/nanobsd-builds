@@ -22,6 +22,7 @@ NANO_PACKAGE_FETCH="
   sudo
   tmux
   unbound
+  zabbix22-agent
 "
 
 CONF_INSTALL='
