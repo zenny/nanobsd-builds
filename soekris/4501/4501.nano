@@ -2,7 +2,13 @@ NANO_NAME=soekris_4501
 NANO_KERNEL=SOEKRIS_4501
 NANO_ARCH=i386
 NANO_DRIVE=ada0
+NANO_CONFSIZE=131072 # 64MiB
+NANO_RAM_ETCSIZE=131072 # 64MiB
+NANO_RAM_TMPVARSIZE=131072 # 64MiB
+NANO_CODESIZE=524288 # 256MiB
+NANO_DATASIZE=-1
 NANO_PACKAGE_DIR=/root/soekris/4501.pkg/All
+NANO_PACKAGE_ABI="freebsd:10:x86:32"
 
 CONF_INSTALL='
 WITHOUT_INSTALLLIB=YES
@@ -57,10 +63,8 @@ WITHOUT_MAN_UTILS=YES
 WITHOUT_MISC=YES
 WITHOUT_MODULES=YES
 WITHOUT_NDIS=YES
-WITHOUT_NETGRAPH=YES
 WITHOUT_NIS=YES
 WITHOUT_NLS=YES
-WITHOUT_NS_CACHING=YES
 WITHOUT_PC_SYSINSTALL=YES
 WITHOUT_PMC=YES
 WITHOUT_PORTSNAP=YES
@@ -86,6 +90,15 @@ WITHOUT_ZONEINFO=YES
 '
 
 FlashDevice sandisk 2g
+
+cust_data_mount() {
+  mkdir -p ${NANO_WORLDDIR}/x1
+  echo "/dev/${NANO_DRIVE}s4 /x1 ufs rw,noatime 1 1" >> ${NANO_WORLDDIR}/etc/fstab
+}
+
+cust_data_home() {
+  ln -s x1/home ${NANO_WORLDDIR}/home
+}
 
 cust_nobeastie() {
   touch ${NANO_WORLDDIR}/boot/loader.conf
@@ -114,7 +127,7 @@ CR0()
 cust_pkgng_fetch ()
 {
 	for PKG in pkg; do
-		pkg fetch -dyo `dirname ${NANO_PACKAGE_DIR}` ${PKG}
+		ABI="${NANO_PACKAGE_ABI}" pkg fetch -dyo `dirname ${NANO_PACKAGE_DIR}` ${PKG}
 	done
 }
 
@@ -182,7 +195,10 @@ cust_pkgng () (
 	nano_rm -rf ${NANO_WORLDDIR}/Pkg
 )
 
+customize_cmd cust_nobeastie
 customize_cmd cust_comconsole
+customize_cmd cust_data_mount
+customize_cmd cust_data_home
 customize_cmd cust_install_files
 customize_cmd cust_allow_ssh_root
 customize_cmd cust_nobeastie
