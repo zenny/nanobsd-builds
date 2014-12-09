@@ -10,7 +10,7 @@ NANO_DATASIZE=-1
 NANO_SRC=~/devel/freebsd
 NANO_OBJ=~/obj
 NANO_MAKE="make -DNO_ROOT"
-NANO_PMAKE="make -j 3 -DNO_ROOT"
+NANO_PMAKE="make -j2 -DNO_ROOT"
 NANO_PACKAGE_DIR=~/pkg/6501/All
 NANO_PACKAGE_FETCH="
   ca_root_nss
