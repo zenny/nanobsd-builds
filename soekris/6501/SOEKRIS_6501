@@ -6,7 +6,7 @@ options         IPSEC
 options         IPSEC_NAT_T
 
 device          crypto
+device          if_bridge
 device          mptable
 device          pf
 device          pflog
-
