@@ -124,6 +124,8 @@ cust_nobeastie() {
 
 cust_pkgng_fetch ()
 {
+  rm -rf ${NANO_PACKAGE_DIR}
+  mkdir -p ${NANO_PACKAGE_DIR}
 	for PKG in ${NANO_PACKAGE_FETCH}; do
 		pkg fetch -dyo `dirname ${NANO_PACKAGE_DIR}` ${PKG}
 	done
