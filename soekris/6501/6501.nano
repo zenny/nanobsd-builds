@@ -129,6 +129,11 @@ cust_pkgng_fetch ()
 	done
 }
 
+last_orders() {
+  xz ${NANO_DISKIMGDIR}/_.disk.image
+  xz ${NANO_DISKIMGDIR}/_.disk.full
+}
+
 customize_cmd cust_nobeastie
 customize_cmd cust_comconsole
 customize_cmd cust_data_mount
