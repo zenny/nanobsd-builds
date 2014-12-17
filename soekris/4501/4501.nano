@@ -13,6 +13,9 @@ NANO_MAKE="make"
 NANO_PMAKE="make -j2"
 NANO_PACKAGE_DIR=/tmp/nanobsd/pkg/4501/All
 NANO_PACKAGE_ABI="FreeBSD:10:i386"
+NANO_PACKAGE_ALTABI="freebsd:10:x86:32"
+NANO_PACKAGE_DBDIR="/tmp/nanobsd/pkg/db/4501"
+NANO_PACKAGE_CACHEDIR="/tmp/nanobsd/pkg/cache/4501"
 
 CONF_INSTALL='
 WITHOUT_INSTALLLIB=YES
@@ -114,7 +117,11 @@ cust_pkgng_fetch ()
 	rm -rf ${NANO_PACKAGE_DIR}
 	mkdir -p ${NANO_PACKAGE_DIR}
 	for PKG in pkg; do
-		ABI="${NANO_PACKAGE_ABI}" pkg fetch -dyo `dirname ${NANO_PACKAGE_DIR}` ${PKG}
+		ABI="${NANO_PACKAGE_ABI}" \
+		ALTABI="${NANO_PACKAGE_ALTABI}" \
+		PKG_DBDIR="${NANO_PACKAGE_DBDIR}" \
+		PKG_CACHEIDR="${NANO_PACKAGE_CACHEDIR}" \
+		pkg fetch -dyo `dirname ${NANO_PACKAGE_DIR}` ${PKG}
 	done
 }
 
