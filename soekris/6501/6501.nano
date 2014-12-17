@@ -132,8 +132,8 @@ cust_pkgng_fetch ()
 }
 
 last_orders() {
-  xz ${NANO_DISKIMGDIR}/_.disk.image
-  xz ${NANO_DISKIMGDIR}/_.disk.full
+  xz -f ${NANO_DISKIMGDIR}/_.disk.image
+  xz -f ${NANO_DISKIMGDIR}/_.disk.full
 }
 
 customize_cmd cust_nobeastie
