@@ -16,6 +16,19 @@ NANO_PACKAGE_ABI="FreeBSD:10:i386"
 NANO_PACKAGE_ALTABI="freebsd:10:x86:32"
 NANO_PACKAGE_DBDIR="/tmp/nanobsd/pkg/db/4501"
 NANO_PACKAGE_CACHEDIR="/tmp/nanobsd/pkg/cache/4501"
+NANO_PACKAGE_FETCH="
+  ca_root_nss
+  cyrus-sasl
+  cyrus-sasl-gssapi
+  kstart
+  krb5
+  nss-pam-ldapd-sasl
+  pam_mkhomedir
+  pkg
+  sudo
+  tmux
+  zabbix24-agent
+"
 
 CONF_INSTALL='
 WITHOUT_INSTALLLIB=YES
@@ -116,7 +129,7 @@ cust_pkgng_fetch ()
 {
 	rm -rf ${NANO_PACKAGE_DIR}
 	mkdir -p ${NANO_PACKAGE_DIR}
-	for PKG in pkg; do
+	for PKG in ${NANO_PACKAGE_FETCH}; do
 		ABI="${NANO_PACKAGE_ABI}" \
 		ALTABI="${NANO_PACKAGE_ALTABI}" \
 		PKG_DBDIR="${NANO_PACKAGE_DBDIR}" \
