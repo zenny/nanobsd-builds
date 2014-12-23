@@ -112,6 +112,23 @@ WITHOUT_ZONEINFO=YES
 
 FlashDevice sandisk 2g
 
+cust_cfengine() {
+  local _bin _bins _dir _dirs
+  
+  _bins="cf-agent cf-execd cf-key cf-monitord cf-promises cf-runagent cf-serverd cf-upgrade"
+  _dirs="bin lastseen reports state"
+  
+  for _dir in ${_dirs}; do
+    mkdir -p ${NANO_WORLDDIR}/var/cfengine/${_dir}
+  done
+  
+  for _bin in ${_bins}; do
+    ln -s /usr/local/sbin/${_bin} ${NANO_WORLDDIR}/var/cfengine/bin/${_bin}
+  done
+  
+  dd if=/dev/urandom of=${NANO_WORLDDIR}/var/cfengine/randseed bs=1024 count=1
+}
+
 cust_data_mount() {
   mkdir -p ${NANO_WORLDDIR}/data
   echo "/dev/${NANO_DRIVE}s4 /data ufs rw,noatime 1 1" >> ${NANO_WORLDDIR}/etc/fstab
@@ -144,6 +161,7 @@ last_orders() {
   xz -f ${NANO_DISKIMGDIR}/_.disk.full
 }
 
+customize_cmd cust_cfengine
 customize_cmd cust_nobeastie
 customize_cmd cust_comconsole
 customize_cmd cust_data_mount
