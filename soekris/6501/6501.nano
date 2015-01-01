@@ -19,7 +19,7 @@ NANO_PACKAGE_FETCH="
   cfengine36
   cyrus-sasl
   cyrus-sasl-gssapi
-  isc-dhcp42-server
+  isc-dhcp43-server
   kstart
   krb5
   nss-pam-ldapd-sasl
