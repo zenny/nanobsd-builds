@@ -4,6 +4,7 @@ ident           SOEKRIS_6501
 options         CAM_BOOT_DELAY=5000
 options         IPSEC
 options         IPSEC_NAT_T
+options         ROUTETABLES=8
 
 device          crypto
 device          if_bridge
