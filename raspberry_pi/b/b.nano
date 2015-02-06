@@ -6,19 +6,27 @@ NANO_CONFSIZE=131072 # 64MiB
 NANO_RAM_ETCSIZE=131072 # 64MiB
 NANO_RAM_TMPVARSIZE=131072 # 64MiB
 NANO_CODESIZE=524288 # 256MiB
-NANO_DATASIZE=-1
+NANO_DATASIZE=0
 NANO_SRC=/usr/src
 NANO_OBJ=/usr/obj
 NANO_MAKE="make"
-NANO_PMAKE="make -j2"
-NANO_PACKAGE_DIR=/tmp/nanobsd/pkg/rpib/All
-NANO_PACKAGE_ABI="FreeBSD:10:armv6"
-NANO_PACKAGE_ALTABI="freebsd:10:armv6:32:el:eabi:softfp"
-NANO_PACKAGE_DBDIR="/tmp/nanobsd/pkg/db/rpib"
-NANO_PACKAGE_CACHEDIR="/tmp/nanobsd/pkg/cache/rpib"
-NANO_PACKAGE_FETCH="
-  pkg
-"
+NANO_PMAKE="make -j4"
+
+NANO_NEWFS="-m 0 -b 4096 -f 512 -i 8192 -O1"
+
+# 32 MiB partition for u-boot and ubldr
+ARM_BOOTSIZE=$((32*1024*1024/512))
+
+# RAM in MiB of Raspberry PI
+TOTAL_MEM=512
+# MiB dedicated to GPU
+GPU_MEM=64
+AVAIL_MEM=$((TOTAL_MEM-GPU_MEM))
+MEM_HEX=`printf 0x%X ${AVAIL_MEM}`
+
+# update device tree file, set available RAM
+echo "Setting RAM to ${AVAIL_MEM} MB"
+sed -i .bak "s%reg = <0 0x.*%reg = <0 ${MEM_HEX}>;%" ${NANO_SRC}/sys/boot/fdt/dts/arm/rpi.dts
 
 CONF_INSTALL='
 WITHOUT_INSTALLLIB=YES
@@ -99,7 +107,7 @@ WITHOUT_ZFS=YES
 WITHOUT_ZONEINFO=YES
 '
 
-FlashDevice sandisk 2g
+FlashDevice generic 8g
 
 cust_data_mount() {
   mkdir -p ${NANO_WORLDDIR}/data
@@ -115,30 +123,189 @@ cust_nobeastie() {
   echo "beastie_disable=\"YES\"" >> ${NANO_WORLDDIR}/boot/loader.conf
 }
 
-cust_pkgng_fetch ()
-{
-	rm -rf ${NANO_PACKAGE_DIR}
-	mkdir -p ${NANO_PACKAGE_DIR}
-	for PKG in ${NANO_PACKAGE_FETCH}; do
-		ABI="${NANO_PACKAGE_ABI}" \
-		ALTABI="${NANO_PACKAGE_ALTABI}" \
-		PKG_DBDIR="${NANO_PACKAGE_DBDIR}" \
-		PKG_CACHEIDR="${NANO_PACKAGE_CACHEDIR}" \
-		pkg fetch -dyo `dirname ${NANO_PACKAGE_DIR}` ${PKG}
-	done
-}
+build_ubldr ( ) (
+  pprint 2 "build ubldr"
+  pprint 3 "log: ${NANO_OBJ}/_.ubldr"
+  
+  (
+  export TARGET_ARCH=armv6
+  
+  cd ${NANO_SRC}
+  
+  buildenv=`make buildenvvars | sed 's/MACHINE_ARCH=armv6/MACHINE_ARCH=arm/'`
+  cd sys/boot
+  
+  eval $buildenv make UBLDR_LOADADDR=0x2000000 clean obj all
+  cd ${NANO_SRC}
+  ) > ${NANO_OBJ}/_.ubldr 2>&1
+)
+
+build_dtb ( ) (
+  pprint 2 "build dtb ($NANO_KERNEL)"
+  pprint 3 "log: ${NANO_OBJ}/_.bdtb"
+	
+  (
+  cd ${NANO_SRC}
+  
+  eval "TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} builddtb MACHINE=arm \
+    SRCCONF='${SRCCONF}' \
+    __MAKE_CONF='${NANO_MAKE_CONF_BUILD}' \
+    ${kernconfdir_arg} KERNCONF=${kernconf}"
+  ) > ${NANO_OBJ}/_.bdtb 2>&1
+)
+
+install_uboot ( ) (
+  local dev mnt
+  dev=$1
+  mnt=$2
+  
+  cd ${NANO_SRC};
+  
+  echo "Installing uboot"
+  newfs_msdos -L boot -F 16 ${dev}
+  mount -t msdosfs ${dev} ${mnt}
+  tar -C ${mnt} -xzf ${NANO_TOOLS}/freebsd-uboot-20121129.tar.gz || true
+  cp ${NANO_OBJ}/arm.armv6/${NANO_SRC}/sys/boot/arm/uboot/ubldr ${mnt}
+  cp ${NANO_SRC}/rpi ${mnt}/devtree.dat
+  echo "device_tree=devtree.dat" >> ${mnt}/config.txt
+  echo "device_tree_address=0x100" >> ${mnt}/config.txt
+  echo "disable_commandline_tags=1" >> ${mnt}/config.txt
+  echo "gpu_mem=${GPU_MEM}" >> ${mnt}/config.txt
+  umount ${mnt}
+  echo "fdt addr 0x100" >> ${NANO_WORLDDIR}/boot/loader.rc
+)
+
+create_bsd_slice ( ) (
+  local name size md index align
+  name=$1
+  size=$2
+  md=$3
+  index=$4
+  align=$5
+  
+  echo "Creating ${name} slice (${size} sectors)"
+  [ -n "$align" ] && align="-a $align"
+  gpart add -i ${index} -s ${size} -t freebsd ${md}
+  gpart create -s BSD ${md}s${index}
+  gpart add ${align} -t freebsd-ufs ${md}s${index}
+)
+
+create_armv6_diskimage ( ) (
+  build_ubldr
+  build_dtb
+  
+  pprint 2 "build diskimage"
+  pprint 3 "log: ${NANO_OBJ}/_.di"
+  
+  (
+  sed -i "" "s=${NANO_DRIVE}s3=${NANO_DRIVE}s4a=g" ${NANO_WORLDDIR}/conf/default/etc/remount
+  
+  if [ ${NANO_CODESIZE} -le 0 ]; then
+    NANO_CODESIZE=$(((NANO_MEDIASIZE-NANO_CONFSIZE-ARM_BOOTSIZE)/NANO_IMAGES))
+  fi
+  if [ ${NANO_DATASIZE} -le 0 ]; then
+    NANO_DATASIZE=$((NANO_MEDIASIZE-NANO_CONFSIZE-ARM_BOOTSIZE-NANO_IMAGES*NANO_CODESIZE))
+  fi
+  
+  IMG=${NANO_DISKIMGDIR}/${NANO_IMGNAME}
+  MNT=${NANO_OBJ}/_.mnt
+  mkdir -p ${MNT}
+  
+  if [ "${NANO_MD_BACKING}" = "swap" ] ; then
+    MD=`mdconfig -a -t swap -s ${NANO_MEDIASIZE}`
+  else
+    echo "Creating md backing file..."
+    rm -f ${IMG}
+    dd if=/dev/zero of=${IMG} seek=${NANO_MEDIASIZE} count=0
+    MD=`mdconfig -a -t vnode -f ${IMG}`
+  fi
+  
+  trap "echo 'Running exit trap code' ; df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
+  
+  echo "Creating boot loader slice (${ARM_BOOTSIZE} sectors)"
+  gpart create -s MBR ${MD}
+  gpart add -a 4k -s ${ARM_BOOTSIZE} -t '!12' ${MD}
+  gpart set -a active -i 1 ${MD}
+  install_uboot /dev/${MD}s1 ${MNT}
+  
+  create_bsd_slice "root" ${NANO_CODESIZE} ${MD} 2 "64k"
+  
+  # Create first image
+  populate_slice /dev/${MD}s2a ${NANO_WORLDDIR} ${MNT} "s2a"
+  mount /dev/${MD}s2a ${MNT}
+  echo "Generating mtree..."
+  ( cd ${MNT} && mtree -c ) > ${NANO_OBJ}/_.mtree
+  ( cd ${MNT} && du -k ) > ${NANO_OBJ}/_.du
+  
+  for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
+  do
+    sed -i "" "s=${NANO_DRIVE}s1=${NANO_DRIVE}s2=g" $f
+    sed -i "" "s=${NANO_DRIVE}s3=${NANO_DRIVE}s4a=g" $f
+  done
+  
+  umount ${MNT}
+  
+  if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
+    create_bsd_slice "alternative root" ${NANO_CODESIZE} ${MD} 3 "64k"
+
+    # Duplicate to second image (if present)
+    echo "Duplicating to second image..."
+    dd conv=sparse if=/dev/${MD}s2 of=/dev/${MD}s3 bs=64k
+    mount /dev/${MD}s3a ${MNT}
+    for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
+    do
+      sed -i "" "s=${NANO_DRIVE}s2=${NANO_DRIVE}s3=g" $f
+    done
+    umount ${MNT}
+    # Override the label from the first partition so we
+    # don't confuse glabel with duplicates.
+    if [ ! -z ${NANO_LABEL} ]; then
+      tunefs -L ${NANO_LABEL}"s3a" /dev/${MD}s3a
+    fi
+  fi
+  
+  create_bsd_slice "config" ${NANO_CONFSIZE} ${MD} 4
+  
+  # Create Config slice
+  populate_cfg_slice /dev/${MD}s4a "${NANO_CFGDIR}" ${MNT} "s4a"
+  
+  # Create Data slice, if any.
+  if [ ${NANO_DATASIZE} -ne 0 ] ; then
+    create_bsd_slice "data" ${NANO_DATASIZE} ${MD} 5
+    
+    populate_data_slice /dev/${MD}s5a "${NANO_DATADIR}" ${MNT} "s5a"
+  fi
+  
+  if [ "${NANO_MD_BACKING}" = "swap" ] ; then
+    echo "Writing out ${NANO_IMGNAME}..."
+    dd conv=sparse if=/dev/${MD} of=${IMG} bs=64k
+  fi
+  
+  if ${do_copyout_partition} ; then
+    echo "Writing out _.disk.image..."
+    dd conv=sparse if=/dev/${MD}s2 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+  fi
+  mdconfig -d -u $MD
+  
+  trap - 1 2 15 EXIT
+  
+  ) > ${NANO_OBJ}/_.di 2>&1
+)
 
 last_orders() {
+  pprint 2 "compressing disk images"
+  pprint 3 "log: ${NANO_OBJ}/_.cdi"
+  
+  (
   xz -f ${NANO_DISKIMGDIR}/_.disk.image
   xz -f ${NANO_DISKIMGDIR}/_.disk.full
+  ) > ${NANO_OBJ}/_.cdi 2>&1
 }
 
 customize_cmd cust_nobeastie
 customize_cmd cust_comconsole
-customize_cmd cust_data_mount
-customize_cmd cust_data_home
+#customize_cmd cust_data_mount
+#customize_cmd cust_data_home
 customize_cmd cust_allow_ssh_root
 customize_cmd cust_install_files
-customize_cmd cust_pkgng_fetch
-customize_cmd cust_pkgng
 
