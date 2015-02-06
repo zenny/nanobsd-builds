@@ -1,0 +1,5 @@
+include         RPI-B
+ident           RPI-B-CONSOLE
+
+device          uftdi
+
