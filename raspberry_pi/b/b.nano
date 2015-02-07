@@ -1,5 +1,5 @@
 NANO_NAME=raspberry_pi_b
-NANO_KERNEL=RPI-B
+NANO_KERNEL=RPI-B-CONSOLE
 NANO_ARCH=armv6
 NANO_DRIVE=mmcsd0
 NANO_CONFSIZE=131072 # 64MiB
@@ -147,7 +147,9 @@ build_dtb ( ) (
   (
   cd ${NANO_SRC}
   
-  eval "TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} builddtb MACHINE=arm \
+  eval "TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} builddtb \
+    FDT_DTS_FILE=rpi.dts \
+    MACHINE=arm \
     SRCCONF='${SRCCONF}' \
     __MAKE_CONF='${NANO_MAKE_CONF_BUILD}' \
     ${kernconfdir_arg} KERNCONF=${kernconf}"
@@ -270,11 +272,11 @@ create_armv6_diskimage ( ) (
   populate_cfg_slice /dev/${MD}s4a "${NANO_CFGDIR}" ${MNT} "s4a"
   
   # Create Data slice, if any.
-  if [ ${NANO_DATASIZE} -ne 0 ] ; then
-    create_bsd_slice "data" ${NANO_DATASIZE} ${MD} 5
-    
-    populate_data_slice /dev/${MD}s5a "${NANO_DATADIR}" ${MNT} "s5a"
-  fi
+#  if [ ${NANO_DATASIZE} -ne 0 ] ; then
+#    create_bsd_slice "data" ${NANO_DATASIZE} ${MD} 5
+#    
+#    populate_data_slice /dev/${MD}s5a "${NANO_DATADIR}" ${MNT} "s5a"
+#  fi
   
   if [ "${NANO_MD_BACKING}" = "swap" ] ; then
     echo "Writing out ${NANO_IMGNAME}..."
