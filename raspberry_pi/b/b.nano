@@ -11,6 +11,24 @@ NANO_SRC=/usr/src
 NANO_OBJ=/usr/obj
 NANO_MAKE="make"
 NANO_PMAKE="make -j4"
+NANO_PACKAGE_DIR=/tmp/nanobsd/pkg/rpi/All
+NANO_PACKAGE_ABI="FreeBSD:10:armv6"
+NANO_PACKAGE_DBDIR="/tmp/nanobsd/pkg/db/rpi"
+NANO_PACKAGE_CACHEDIR="/tmp/nanobsd/pkg/cache/rpi"
+NANO_PACKAGE_FETCH="
+  ca_root_nss
+  cfengine36
+  cyrus-sasl
+  cyrus-sasl-gssapi
+  kstart
+  krb5
+  nss-pam-ldapd-sasl
+  pam_mkhomedir
+  pkg
+  sudo
+  tmux
+  zabbix24-agent
+"
 
 NANO_NEWFS="-m 0 -b 4096 -f 512 -i 8192 -O1"
 
@@ -294,6 +312,18 @@ create_armv6_diskimage ( ) (
   ) > ${NANO_OBJ}/_.di 2>&1
 )
 
+cust_pkgng_fetch ()
+{
+	rm -rf ${NANO_PACKAGE_DIR}
+	mkdir -p ${NANO_PACKAGE_DIR}
+	for PKG in ${NANO_PACKAGE_FETCH}; do
+		ABI="${NANO_PACKAGE_ABI}" \
+		PKG_DBDIR="${NANO_PACKAGE_DBDIR}" \
+		PKG_CACHEIDR="${NANO_PACKAGE_CACHEDIR}" \
+		pkg fetch -dyo `dirname ${NANO_PACKAGE_DIR}` ${PKG}
+	done
+}
+
 last_orders() {
   pprint 2 "compressing disk images"
   pprint 3 "log: ${NANO_OBJ}/_.cdi"
@@ -310,4 +340,5 @@ customize_cmd cust_comconsole
 #customize_cmd cust_data_home
 customize_cmd cust_allow_ssh_root
 customize_cmd cust_install_files
-
+customize_cmd cust_pkgng_fetch
+customize_cmd cust_pkgng
