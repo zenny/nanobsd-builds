@@ -11,6 +11,7 @@ NANO_SRC=/usr/src
 NANO_OBJ=/usr/obj
 NANO_MAKE="make"
 NANO_PMAKE="make -j4"
+NANO_FIRMWARE_DIR="/tmp/nanobsd/firmware/rpi"
 NANO_PACKAGE_DIR=/tmp/nanobsd/pkg/rpi/All
 NANO_PACKAGE_ABI="FreeBSD:10:armv6"
 NANO_PACKAGE_DBDIR="/tmp/nanobsd/pkg/db/rpi"
@@ -184,13 +185,23 @@ install_uboot ( ) (
   echo "Installing uboot"
   newfs_msdos -L boot -F 16 ${dev}
   mount -t msdosfs ${dev} ${mnt}
-  tar -C ${mnt} -xzf ${NANO_TOOLS}/freebsd-uboot-20121129.tar.gz || true
+  if [ ! -d ${NANO_FIRMWARE_DIR} ]; then
+    mkdir -p ${NANO_FIRMWARE_DIR}
+  fi
+  if [ ! -e ${NANO_FIRMWARE_DIR}/freebsd-uboot-20121129.tar.gz ]; then
+    fetch -o ${NANO_FIRMWARE_DIR}/freebsd-uboot-20121129.tar.gz http://people.freebsd.org/~gonzo/arm/rpi/freebsd-uboot-20121129.tar.gz
+  fi
+  tar -C ${NANO_FIRMWARE_DIR} -zxvf ${NANO_FIRMWARE_DIR}/freebsd-uboot-20121129.tar.gz
+  for FILE in boot-ubldr.txt boot.scr bootcode.bin config.txt fixup.dat fixup_cd.dat start.elf start_cd.elf uEnv.txt uboot.img; do
+    cp ${NANO_FIRMWARE_DIR}/${FILE} ${mnt}
+  done
   cp ${NANO_OBJ}/arm.armv6/${NANO_SRC}/sys/boot/arm/uboot/ubldr ${mnt}
   cp ${NANO_SRC}/rpi ${mnt}/devtree.dat
   echo "device_tree=devtree.dat" >> ${mnt}/config.txt
   echo "device_tree_address=0x100" >> ${mnt}/config.txt
   echo "disable_commandline_tags=1" >> ${mnt}/config.txt
   echo "gpu_mem=${GPU_MEM}" >> ${mnt}/config.txt
+  
   umount ${mnt}
   echo "fdt addr 0x100" >> ${NANO_WORLDDIR}/boot/loader.rc
 )
@@ -324,6 +335,16 @@ cust_pkgng_fetch ()
 	done
 }
 
+cust_binmisc_setup()
+{
+  cp /usr/local/bin/qemu-arm-static ${NANO_WORLDDIR}/usr/bin/
+}
+
+cust_binmisc_cleanup()
+{
+  rm ${NANO_WORLDDIR}/usr/bin/qemu-arm-static
+}
+
 last_orders() {
   pprint 2 "compressing disk images"
   pprint 3 "log: ${NANO_OBJ}/_.cdi"
@@ -340,5 +361,7 @@ customize_cmd cust_comconsole
 #customize_cmd cust_data_home
 customize_cmd cust_allow_ssh_root
 customize_cmd cust_install_files
+customize_cmd cust_binmisc_setup
 customize_cmd cust_pkgng_fetch
 customize_cmd cust_pkgng
+customize_cmd cust_binmisc_cleanup
