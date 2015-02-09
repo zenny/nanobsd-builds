@@ -130,7 +130,7 @@ FlashDevice generic 8g
 
 cust_data_mount() {
   mkdir -p ${NANO_WORLDDIR}/data
-  echo "/dev/${NANO_DRIVE}s4 /data ufs rw,noatime 1 1" >> ${NANO_WORLDDIR}/etc/fstab
+  echo "/dev/${NANO_DRIVE}s4b /data ufs rw,noatime 2 2" >> ${NANO_WORLDDIR}/etc/fstab
 }
 
 cust_data_home() {
@@ -206,21 +206,6 @@ install_uboot ( ) (
   echo "fdt addr 0x100" >> ${NANO_WORLDDIR}/boot/loader.rc
 )
 
-create_bsd_slice ( ) (
-  local name size md index align
-  name=$1
-  size=$2
-  md=$3
-  index=$4
-  align=$5
-  
-  echo "Creating ${name} slice (${size} sectors)"
-  [ -n "$align" ] && align="-a $align"
-  gpart add -i ${index} -s ${size} -t freebsd ${md}
-  gpart create -s BSD ${md}s${index}
-  gpart add ${align} -t freebsd-ufs ${md}s${index}
-)
-
 create_armv6_diskimage ( ) (
   build_ubldr
   build_dtb
@@ -242,24 +227,24 @@ create_armv6_diskimage ( ) (
   MNT=${NANO_OBJ}/_.mnt
   mkdir -p ${MNT}
   
-  if [ "${NANO_MD_BACKING}" = "swap" ] ; then
-    MD=`mdconfig -a -t swap -s ${NANO_MEDIASIZE}`
-  else
-    echo "Creating md backing file..."
-    rm -f ${IMG}
-    dd if=/dev/zero of=${IMG} seek=${NANO_MEDIASIZE} count=0
-    MD=`mdconfig -a -t vnode -f ${IMG}`
-  fi
+  MKIMG_BOOTSIZE=$((${ARM_BOOTSIZE} * 512))
+  MKIMG_CODESIZE=$((${NANO_CODESIZE} * 512))
+  MKIMG_CONFSIZE=$((${NANO_CONFSIZE} * 512))
+  MKIMG_DATASIZE=$((${NANO_DATASIZE} * 512))
+  
+  echo "Creating image..."
+  mkimg -H ${NANO_HEADS} -P 512 -T ${NANO_SECTS} \
+        -s mbr -p fat32::${MKIMG_BOOTSIZE} \
+               -p freebsd:-"mkimg -s bsd -p freebsd-ufs::${MKIMG_CODESIZE}" \
+               -p freebsd:-"mkimg -s bsd -p freebsd-ufs::${MKIMG_CODESIZE}" \
+               -p freebsd:-"mkimg -s bsd -p freebsd-ufs::${MKIMG_CONFSIZE} \
+                                         -p freebsd-ufs::${MKIMG_DATASIZE}" \
+        -o ${IMG}
+  MD=`mdconfig -a -t vnode -f ${IMG}`
   
   trap "echo 'Running exit trap code' ; df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
   
-  echo "Creating boot loader slice (${ARM_BOOTSIZE} sectors)"
-  gpart create -s MBR ${MD}
-  gpart add -a 4k -s ${ARM_BOOTSIZE} -t '!12' ${MD}
-  gpart set -a active -i 1 ${MD}
   install_uboot /dev/${MD}s1 ${MNT}
-  
-  create_bsd_slice "root" ${NANO_CODESIZE} ${MD} 2 "64k"
   
   # Create first image
   populate_slice /dev/${MD}s2a ${NANO_WORLDDIR} ${MNT} "s2a"
@@ -277,8 +262,6 @@ create_armv6_diskimage ( ) (
   umount ${MNT}
   
   if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
-    create_bsd_slice "alternative root" ${NANO_CODESIZE} ${MD} 3 "64k"
-
     # Duplicate to second image (if present)
     echo "Duplicating to second image..."
     dd conv=sparse if=/dev/${MD}s2 of=/dev/${MD}s3 bs=64k
@@ -295,22 +278,11 @@ create_armv6_diskimage ( ) (
     fi
   fi
   
-  create_bsd_slice "config" ${NANO_CONFSIZE} ${MD} 4
-  
   # Create Config slice
   populate_cfg_slice /dev/${MD}s4a "${NANO_CFGDIR}" ${MNT} "s4a"
   
   # Create Data slice, if any.
-#  if [ ${NANO_DATASIZE} -ne 0 ] ; then
-#    create_bsd_slice "data" ${NANO_DATASIZE} ${MD} 5
-#    
-#    populate_data_slice /dev/${MD}s5a "${NANO_DATADIR}" ${MNT} "s5a"
-#  fi
-  
-  if [ "${NANO_MD_BACKING}" = "swap" ] ; then
-    echo "Writing out ${NANO_IMGNAME}..."
-    dd conv=sparse if=/dev/${MD} of=${IMG} bs=64k
-  fi
+  populate_data_slice /dev/${MD}s4b "${NANO_DATADIR}" ${MNT} "s4b"
   
   if ${do_copyout_partition} ; then
     echo "Writing out _.disk.image..."
@@ -325,14 +297,14 @@ create_armv6_diskimage ( ) (
 
 cust_pkgng_fetch ()
 {
-	rm -rf ${NANO_PACKAGE_DIR}
-	mkdir -p ${NANO_PACKAGE_DIR}
-	for PKG in ${NANO_PACKAGE_FETCH}; do
-		ABI="${NANO_PACKAGE_ABI}" \
-		PKG_DBDIR="${NANO_PACKAGE_DBDIR}" \
-		PKG_CACHEIDR="${NANO_PACKAGE_CACHEDIR}" \
-		pkg fetch -dyo `dirname ${NANO_PACKAGE_DIR}` ${PKG}
-	done
+  rm -rf ${NANO_PACKAGE_DIR}
+  mkdir -p ${NANO_PACKAGE_DIR}
+  for PKG in ${NANO_PACKAGE_FETCH}; do
+    ABI="${NANO_PACKAGE_ABI}" \
+    PKG_DBDIR="${NANO_PACKAGE_DBDIR}" \
+    PKG_CACHEIDR="${NANO_PACKAGE_CACHEDIR}" \
+    pkg fetch -dyo `dirname ${NANO_PACKAGE_DIR}` ${PKG}
+  done
 }
 
 cust_binmisc_setup()
@@ -357,8 +329,8 @@ last_orders() {
 
 customize_cmd cust_nobeastie
 customize_cmd cust_comconsole
-#customize_cmd cust_data_mount
-#customize_cmd cust_data_home
+customize_cmd cust_data_mount
+customize_cmd cust_data_home
 customize_cmd cust_allow_ssh_root
 customize_cmd cust_install_files
 customize_cmd cust_binmisc_setup
