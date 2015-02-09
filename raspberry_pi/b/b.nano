@@ -142,6 +142,11 @@ cust_nobeastie() {
   echo "beastie_disable=\"YES\"" >> ${NANO_WORLDDIR}/boot/loader.conf
 }
 
+cust_nosdhcihs() {
+  touch ${NANO_WORLDDIR}/boot/loader.conf
+  echo "hw.bcm2835.sdhci.hs=0" >> ${NANO_WORLDDIR}/boot/loader.conf
+}
+
 build_ubldr ( ) (
   pprint 2 "build ubldr"
   pprint 3 "log: ${NANO_OBJ}/_.ubldr"
@@ -328,6 +333,7 @@ last_orders() {
 }
 
 customize_cmd cust_nobeastie
+customize_cmd cust_nosdhcihs
 customize_cmd cust_comconsole
 customize_cmd cust_data_mount
 customize_cmd cust_data_home
