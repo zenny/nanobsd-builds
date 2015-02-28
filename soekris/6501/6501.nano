@@ -111,6 +111,11 @@ WITHOUT_ZFS=YES
 
 FlashDevice generic 30g
 
+cust_cfengine() {
+  rm -rf ${NANO_WORLDDIR}/var/cfengine
+  ln -s /data/cfengine ${NANO_WORLDDIR}/var/cfengine
+}
+
 cust_data_mount() {
   mkdir -p ${NANO_WORLDDIR}/data
   echo "/dev/${NANO_DRIVE}s4 /data ufs rw,noatime 1 1" >> ${NANO_WORLDDIR}/etc/fstab
@@ -149,4 +154,4 @@ customize_cmd cust_allow_ssh_root
 customize_cmd cust_install_files
 customize_cmd cust_pkgng_fetch
 customize_cmd cust_pkgng
-
+customize_cmd cust_cfengine
