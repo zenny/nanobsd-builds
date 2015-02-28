@@ -114,6 +114,7 @@ WITHOUT_ZONEINFO=YES
 FlashDevice sandisk 2g
 
 cust_cfengine() {
+  rm -rf ${NANO_WORLDDIR}/var/cfengine
   ln -s /data/cfengine ${NANO_WORLDDIR}/var/cfengine
 }
 
@@ -149,7 +150,6 @@ last_orders() {
   xz -f ${NANO_DISKIMGDIR}/_.disk.full
 }
 
-customize_cmd cust_cfengine
 customize_cmd cust_nobeastie
 customize_cmd cust_comconsole
 customize_cmd cust_data_mount
@@ -158,4 +158,5 @@ customize_cmd cust_allow_ssh_root
 customize_cmd cust_install_files
 customize_cmd cust_pkgng_fetch
 customize_cmd cust_pkgng
+customize_cmd cust_cfengine
 
