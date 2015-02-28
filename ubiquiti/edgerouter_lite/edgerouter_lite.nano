@@ -1,0 +1,157 @@
+NANO_NAME=ubiquiti_edgerouter_lite
+NANO_KERNEL=UBIQUITI_ERL
+NANO_ARCH=mips64
+NANO_DRIVE=da0
+NANO_CONFSIZE=131072 # 64MiB
+NANO_RAM_ETCSIZE=131072 # 64MiB
+NANO_RAM_TMPVARSIZE=131072 # 64MiB
+NANO_CODESIZE=524288 # 256MiB
+NANO_DATASIZE=0
+NANO_SRC=/usr/src
+NANO_OBJ=/usr/obj
+NANO_MAKE="make"
+NANO_PMAKE="make -j6"
+
+CONF_INSTALL='
+WITHOUT_INSTALLLIB=YES
+WITHOUT_TOOLCHAIN=YES
+'
+
+CONF_WORLD='
+WITHOUT_ACCT=YES
+WITHOUT_ACPI=YES
+WITHOUT_AMD=YES
+WITHOUT_APM=YES
+WITHOUT_ASSERT_DEBUG=YES
+WITHOUT_AT=YES
+WITHOUT_ATF=YES
+WITHOUT_ATM=YES
+WITHOUT_AUDIT=YES
+WITHOUT_AUTHPF=YES
+WITHOUT_BIND=YES
+WITHOUT_BLUETOOTH=YES
+WITHOUT_BSNMP=YES
+WITHOUT_CALENDAR=YES
+WITHOUT_CAPSICUM=YES
+WITHOUT_CDDL=YES
+WITHOUT_CTM=YES
+WITHOUT_DICT=YES
+WITHOUT_EXAMPLES=YES
+WITHOUT_FDT=YES
+WITHOUT_FLOPPY=YES
+WITHOUT_FORTRAN=YES
+WITHOUT_FREEBSD_UPDATE=YES
+WITHOUT_GAMES=YES
+WITHOUT_GCOV=YES
+WITHOUT_GDB=YES
+WITHOUT_GROFF=YES
+WITHOUT_GPIB=YES
+WITHOUT_HTML=YES
+WITHOUT_INFO=YES
+WITHOUT_IPFILTER=YES
+WITHOUT_IPFW=YES
+WITHOUT_IPX=YES
+WITHOUT_JAIL=YES
+WITHOUT_KDUMP=YES
+WITHOUT_KERNEL_SYMBOLS=YES
+WITHOUT_KLDLOAD=YES
+WITHOUT_LOCALES=YES
+WITHOUT_LOCATE=YES
+WITHOUT_LPR=YES
+WITHOUT_LS_COLORS=YES
+WITHOUT_MAIL=YES
+WITHOUT_MAN=YES
+WITHOUT_MAN_UTILS=YES
+WITHOUT_MISC=YES
+WITHOUT_MODULES=YES
+WITHOUT_NDIS=YES
+WITHOUT_NIS=YES
+WITHOUT_NLS=YES
+WITHOUT_PC_SYSINSTALL=YES
+WITHOUT_PMC=YES
+WITHOUT_PORTSNAP=YES
+WITHOUT_PPP=YES
+WITHOUT_PROFILE=YES
+WITHOUT_QUOTAS=YES
+WITHOUT_RCMDS=YES
+WITHOUT_RCS=YES
+WITHOUT_RESCUE=YES
+WITHOUT_ROUTED=YES
+WITHOUT_SENDMAIL=YES
+WITHOUT_SHARE=YES
+WITHOUT_SHAREDOCS=YES
+WITHOUT_SSP=YES
+WITHOUT_SVNLITE=YES
+WITHOUT_SYSCONS=YES
+WITHOUT_SYSINSTALL=YES
+WITHOUT_TEXTPROC=YES
+WITHOUT_USB=YES
+WITHOUT_WIRELESS=YES
+WITHOUT_ZFS=YES
+WITHOUT_ZONEINFO=YES
+'
+
+UsbDevice generic 4000
+
+cust_nobeastie() {
+  touch ${NANO_WORLDDIR}/boot/loader.conf
+  echo "beastie_disable=\"YES\"" >> ${NANO_WORLDDIR}/boot/loader.conf
+}
+
+create_diskimage() {
+  pprint 2 "build diskimage"
+  pprint 3 "log: ${NANO_OBJ}/_.di"
+  
+  (
+  IMG=${NANO_DISKIMGDIR}/${NANO_IMGNAME}
+  MNT=${NANO_OBJ}/_.mnt
+  mkdir -p ${MNT}
+  
+  mkimg -H ${NANO_HEADS} -P 512 -T ${NANO_SECTS} \
+        -s mbr -p fat32::$((393216 * 512)) \
+               -p freebsd:-"mkimg -s bsd -p freebsd-ufs::$((NANO_CODESIZE * 512))" \
+               -p freebsd:-"mkimg -s bsd -p freebsd-ufs::$((NANO_CODESIZE * 512))" \
+               -p freebsd:-"mkimg -s bsd -p freebsd-ufs::$((NANO_CONFSIZE * 512)) \
+                                         -p freebsd-ufs::$((NANO_DATASIZE * 512))" \
+        -o ${NANO_DISKIMGDIR}/${NANO_IMGNAME}
+  MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} -y ${NANO_HEADS}`
+  
+  trap "echo 'Running exit trap code' ; df -i ${MNT} ; nano_umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
+  
+  echo "/dev/${NANO_DRIVE}s2a / ufs ro 1 1" > ${NANO_WORLDDIR}/etc/fstab
+  echo "/dev/${NANO_DRIVE}s4a /cfg ufs rw,noauto 2 2" >> ${NANO_WORLDDIR}/etc/fstab
+  echo "mount -o ro /dev/${NANO_DRIVE}s4a" > ${NANO_WORLDDIR}/conf/default/etc/remount
+  
+  newfs_msdos -F 16 /dev/${MD}s1
+  mount -t msdosfs /dev/${MD}s1 ${MNT}
+  mv ${NANO_WORLDDIR}/boot/* ${MNT}
+  umount ${MNT}
+  
+  makefs -B big -s $((NANO_CODESIZE * 512)) ${NANO_WORLDDIR}.ufs ${NANO_WORLDDIR}
+  dd if=${NANO_WORLDDIR}.ufs of=/dev/${MD}s2a bs=1M
+  
+  for f in ${NANO_WORLDDIR}/etc/fstab ${NANO_WORLDDIR}/conf/base/etc/fstab
+  do
+    sed -i "" "s=${NANO_DRIVE}s2=${NANO_DRIVE}s3=g" $f
+  done
+  makefs -B big -s $((NANO_CODESIZE * 512)) ${NANO_WORLDDIR}.ufs ${NANO_WORLDDIR}
+  dd if=${NANO_WORLDDIR}.ufs of=/dev/${MD}s3a bs=1M
+  
+  makefs -B big -s $((NANO_DATASIZE * 512)) ${NANO_OBJ}/empty.ufs /var/empty
+  dd if=${NANO_OBJ}/empty.ufs of=/dev/${MD}s4b bs=1M
+  
+  if ${do_copyout_partition} ; then
+    echo "Writing out _.disk.image..."
+    dd conv=sparse if=/dev/${MD}s2a of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+  fi
+  mdconfig -d -u $MD
+                  
+  trap - 1 2 15
+  trap nano_cleanup EXIT
+  ) > ${NANO_OBJ}/_.di 2>&1
+}
+
+customize_cmd cust_nobeastie
+customize_cmd cust_comconsole
+customize_cmd cust_allow_ssh_root
+customize_cmd cust_install_files

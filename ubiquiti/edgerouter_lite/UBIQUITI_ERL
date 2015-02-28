@@ -1,0 +1,29 @@
+include         OCTEON1
+ident           UBIQUITI_ERL
+
+options         OCTEON_VENDOR_UBIQUITI
+options         OCTEON_MODEL=OCTEON_CN50XX_PASS1
+
+nooptions       DDB
+nooptions       GDB
+nooptions       KDB
+nooptions       DEADLKRES
+nooptions       INVARIANTS
+nooptions       INVARIANT_SUPPORT
+nooptions       WITNESS
+nooptions       WITNESS_SKIPSPIN
+nooptions       MALLOC_DEBUG_MAXZONES
+
+options         IPSEC
+options         IPSEC_NAT_T
+
+options         ROUTETABLES=16
+
+options         TMPFS
+
+nooptions       ROOTDEVNAME
+options         ROOTDEVNAME=\"ufs:da0s2a\"
+
+device          crypto
+device          pf
+device          pflog
