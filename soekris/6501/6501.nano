@@ -24,6 +24,7 @@ NANO_PACKAGE_FETCH="
   krb5
   nss-pam-ldapd-sasl
   pam_mkhomedir
+  perl5
   pkg
   relayd
   strongswan
