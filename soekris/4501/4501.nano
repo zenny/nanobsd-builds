@@ -130,6 +130,10 @@ cust_nobeastie() {
   echo "beastie_disable=\"YES\"" >> ${NANO_WORLDDIR}/boot/loader.conf
 }
 
+cust_pam_mkhomedir() {
+  mkdir -p ${NANO_WORLDDIR}/usr/local/share/skel
+}
+
 cust_pkgng_fetch ()
 {
 	rm -rf ${NANO_PACKAGE_DIR}
@@ -152,6 +156,7 @@ customize_cmd cust_nobeastie
 customize_cmd cust_comconsole
 customize_cmd cust_data_mount
 customize_cmd cust_data_home
+customize_cmd cust_pam_mkhomedir
 customize_cmd cust_allow_ssh_root
 customize_cmd cust_install_files
 customize_cmd cust_pkgng_fetch
