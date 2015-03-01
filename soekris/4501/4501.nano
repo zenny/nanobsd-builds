@@ -24,6 +24,7 @@ NANO_PACKAGE_FETCH="
   kstart
   krb5
   nss-pam-ldapd-sasl
+  openssh-ak-ldap
   pam_mkhomedir
   perl5
   pkg
