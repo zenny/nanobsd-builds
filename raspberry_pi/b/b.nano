@@ -219,7 +219,7 @@ create_armv6_diskimage ( ) (
   pprint 3 "log: ${NANO_OBJ}/_.di"
   
   (
-  sed -i "" "s=${NANO_DRIVE}s3=${NANO_DRIVE}s4a=g" ${NANO_WORLDDIR}/conf/default/etc/remount
+  sed -i "" "s,${NANO_DRIVE}s3,${NANO_DRIVE}s4a,g" ${NANO_WORLDDIR}/conf/default/etc/remount
   
   if [ ${NANO_CODESIZE} -le 0 ]; then
     NANO_CODESIZE=$(((NANO_MEDIASIZE-NANO_CONFSIZE-ARM_BOOTSIZE)/NANO_IMAGES))
@@ -322,6 +322,16 @@ cust_binmisc_cleanup()
   rm ${NANO_WORLDDIR}/usr/bin/qemu-arm-static
 }
 
+cust_fix_files()
+{
+  sed -i "" "s,${NANO_DRIVE}s1,${NANO_DRIVE}s2,g" ${NANO_WORLDDIR}/root/update
+  sed -i "" "s,${NANO_DRIVE}s1,${NANO_DRIVE}s2,g" ${NANO_WORLDDIR}/root/updatep1
+  sed -i "" "s,active -i 1,active -i 2,g"         ${NANO_WORLDDIR}/root/updatep1
+  sed -i "" "s,${NANO_DRIVE}s2,${NANO_DRIVE}s3,g" ${NANO_WORLDDIR}/root/updatep2
+  sed -i "" "s,${NANO_DRIVE}s1,${NANO_DRIVE}s2,g" ${NANO_WORLDDIR}/root/updatep2
+  sed -i "" "s,active -i 2,active -i 3,g"         ${NANO_WORLDDIR}/root/updatep2
+}
+
 last_orders() {
   pprint 2 "compressing disk images"
   pprint 3 "log: ${NANO_OBJ}/_.cdi"
@@ -339,6 +349,7 @@ customize_cmd cust_data_mount
 customize_cmd cust_data_home
 customize_cmd cust_allow_ssh_root
 customize_cmd cust_install_files
+customize_cmd cust_fix_files
 customize_cmd cust_binmisc_setup
 customize_cmd cust_pkgng_fetch
 customize_cmd cust_pkgng
