@@ -324,12 +324,12 @@ cust_binmisc_cleanup()
 
 cust_fix_files()
 {
-  sed -i "" "s,${NANO_DRIVE}s1,${NANO_DRIVE}s2,g" ${NANO_WORLDDIR}/root/update
-  sed -i "" "s,${NANO_DRIVE}s1,${NANO_DRIVE}s2,g" ${NANO_WORLDDIR}/root/updatep1
-  sed -i "" "s,active -i 1,active -i 2,g"         ${NANO_WORLDDIR}/root/updatep1
-  sed -i "" "s,${NANO_DRIVE}s2,${NANO_DRIVE}s3,g" ${NANO_WORLDDIR}/root/updatep2
-  sed -i "" "s,${NANO_DRIVE}s1,${NANO_DRIVE}s2,g" ${NANO_WORLDDIR}/root/updatep2
-  sed -i "" "s,active -i 2,active -i 3,g"         ${NANO_WORLDDIR}/root/updatep2
+  sed -i "" "s,\${NANO_DRIVE}s1,\${NANO_DRIVE}s2,g" ${NANO_WORLDDIR}/root/update
+  sed -i "" "s,\${NANO_DRIVE}s1,\${NANO_DRIVE}s2,g" ${NANO_WORLDDIR}/root/updatep1
+  sed -i "" "s,active -i 1,active -i 2,g"           ${NANO_WORLDDIR}/root/updatep1
+  sed -i "" "s,\${NANO_DRIVE}s2,\${NANO_DRIVE}s3,g" ${NANO_WORLDDIR}/root/updatep2
+  sed -i "" "s,\${NANO_DRIVE}s1,\${NANO_DRIVE}s2,g" ${NANO_WORLDDIR}/root/updatep2
+  sed -i "" "s,active -i 2,active -i 3,g"           ${NANO_WORLDDIR}/root/updatep2
 }
 
 last_orders() {
